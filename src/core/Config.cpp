@@ -116,6 +116,7 @@ const float
 	gamma = 5.f,
 	fov = 75.f,
 	hudScale = 0.5f,
+	hudOpacity = 1.f,
 	bookScale = 1.f,
 	cursorScale = 0.5f,
 	fontSize = 1.f,
@@ -223,6 +224,7 @@ const std::string
 	cinematicWidescreenMode = "cinematic_widescreen_mode",
 	hudScale = "hud_scale",
 	hudScaleInteger = "hud_scale_integer",
+	hudOpacity = "hud_opacity",
 	bookScale = "book_scale",
 	bookScaleInteger = "book_scale_integer",
 	cursorScale = "cursor_scale",
@@ -481,6 +483,7 @@ bool Config::save() {
 	writer.writeKey(Key::cinematicWidescreenMode, int(interface.cinematicWidescreenMode));
 	writer.writeKey(Key::hudScale, interface.hudScale);
 	writer.writeKey(Key::hudScaleInteger, interface.hudScaleInteger);
+	writer.writeKey(Key::hudOpacity, interface.hudOpacity);
 	writer.writeKey(Key::bookScale, interface.bookScale);
 	writer.writeKey(Key::bookScaleInteger, interface.bookScaleInteger);
 	writer.writeKey(Key::cursorScale, interface.cursorScale);
@@ -637,6 +640,8 @@ bool Config::init(const fs::path & file) {
 	float hudScale = reader.getKey(Section::Interface, Key::hudScale, Default::hudScale);
 	interface.hudScale = glm::clamp(hudScale, 0.f, 1.f);
 	interface.hudScaleInteger = reader.getKey(Section::Interface, Key::hudScaleInteger, Default::hudScaleInteger);
+	float hudOpacity = reader.getKey(Section::Interface, Key::hudOpacity, Default::hudOpacity);
+	interface.hudOpacity = glm::clamp(hudOpacity, 0.f, 1.f);
 	float bookScale = reader.getKey(Section::Interface, Key::bookScale, Default::bookScale);
 	interface.bookScale = glm::clamp(bookScale, 0.f, 1.f);
 	interface.bookScaleInteger = reader.getKey(Section::Interface, Key::bookScaleInteger, Default::bookScaleInteger);

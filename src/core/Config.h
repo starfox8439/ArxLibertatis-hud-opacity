@@ -165,6 +165,7 @@ public:
 		
 		float hudScale;
 		bool hudScaleInteger;
+		float hudOpacity;
 		float bookScale;
 		bool bookScaleInteger;
 		float cursorScale;

@@ -1258,7 +1258,15 @@ public:
 			sld->setValue(int(config.interface.hudScale * 10.f));
 			addCenter(sld);
 		}
-		
+
+		{
+			std::string label = getLocalised("system_menus_options_interface_hud_opacity", "HUD Opacity");
+			SliderWidget * sld = new SliderWidget(sliderSize(), hFontMenu, label);
+			sld->valueChanged = boost::bind(&InterfaceOptionsMenuPage::onChangedHudOpacity, this, arg::_1);
+			sld->setValue(int(config.interface.hudOpacity * 10.f));
+			addCenter(sld);
+		}
+
 		{
 			std::string label = getLocalised("system_menus_options_interface_hud_scale_integer");
 			CheckboxWidget * cb = new CheckboxWidget(checkboxSize(), hFontMenu, label);
@@ -1355,7 +1363,11 @@ private:
 		config.interface.hudScale = float(state) * 0.1f;
 		g_hudRoot.recalcScale();
 	}
-	
+
+	void onChangedHudOpacity(int state) {
+		config.interface.hudOpacity = float(state) * 0.1f;
+	}
+
 	void onChangedHudScaleInteger(bool checked) {
 		config.interface.hudScaleInteger = checked;
 		g_hudRoot.recalcScale();

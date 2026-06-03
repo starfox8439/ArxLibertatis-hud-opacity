@@ -20,6 +20,7 @@
 #include "gui/hud/HudCommon.h"
 
 #include "game/Entity.h"
+#include "core/Config.h"
 #include "graphics/Draw.h"
 #include "graphics/Renderer.h"
 #include "gui/Interface.h"
@@ -39,11 +40,11 @@ void HudIconBase::draw() {
 		ARX_INTERFACE_HALO_Render(m_haloColor, HALO_ACTIVE, m_tex->getHalo(), m_rect.topLeft(), Vec2f(m_scale));
 	}
 	
-	EERIEDrawBitmap(m_rect, 0.001f, m_tex, Color::white);
-	
+	EERIEDrawBitmap(m_rect, 0.001f, m_tex, Color(255, 255, 255, u8(255.f * config.interface.hudOpacity)));
+
 	if(m_isSelected) {
 		UseRenderState state(render2D().blendAdditive());
-		EERIEDrawBitmap(m_rect, 0.001f, m_tex, Color::white);
+		EERIEDrawBitmap(m_rect, 0.001f, m_tex, Color(255, 255, 255, u8(255.f * config.interface.hudOpacity)));
 	}
 	
 }

@@ -68,6 +68,11 @@ extern bool WILLRETURNTOFREELOOK;
 static const int indicatorVertSpacing = 30;
 static const int indicatorHorizSpacing = 20;
 
+// Scale vertex alpha by HUD opacity. Works for all blend modes once OpModulate is active.
+static Color hudAlpha(Color c) {
+	return Color(c.r, c.g, c.b, u8(float(c.a) * config.interface.hudOpacity));
+}
+
 HitStrengthGauge::HitStrengthGauge()
 	: m_emptyTex(NULL)
 	, m_fullTex(NULL)
@@ -130,19 +135,19 @@ void HitStrengthGauge::draw() {
 	
 	{
 		UseRenderState state(render2D().blendAdditive());
-		EERIEDrawBitmap(m_rect, 0.0001f, m_fullTex, Color::gray(m_intensity));
+		EERIEDrawBitmap(m_rect, 0.0001f, m_fullTex, hudAlpha(Color::gray(m_intensity)));
 	}
-	
-	EERIEDrawBitmap(m_rect, 0.0001f, m_emptyTex, Color::white);
-	
+
+	EERIEDrawBitmap(m_rect, 0.0001f, m_emptyTex, hudAlpha(Color::white));
+
 	if(m_flashActive && player.m_skillFull.etheralLink >= 40) {
-		
+
 		float j = 1.0f - m_flashIntensity;
 		Color col = (j < 0.5f) ? Color::rgb(j * 2.f, 1.f, 0.f) : Color::rgb(1.f, m_flashIntensity, 0.f);
-		
+
 		UseRenderState state(render2D().blendAdditive());
-		EERIEDrawBitmap(m_hitRect, 0.0001f, m_hitTex, col);
-		
+		EERIEDrawBitmap(m_hitRect, 0.0001f, m_hitTex, hudAlpha(col));
+
 	}
 }
 
@@ -460,7 +465,7 @@ void PurseIconGui::draw() {
 	
 	if(m_isSelected) {
 		Vec2f numberPos = m_rect.topRight() + Vec2f(0.f, -15 * m_scale);
-		ARX_INTERFACE_DrawNumber(numberPos, player.gold, Color::white, m_scale);
+		ARX_INTERFACE_DrawNumber(numberPos, player.gold, hudAlpha(Color::white), m_scale);
 	}
 	
 }
@@ -552,7 +557,7 @@ void CurrentTorchIconGui::draw() {
 	if(!isVisible())
 		return;
 	
-	EERIEDrawBitmap(m_rect, 0.001f, m_tex, Color::white);
+	EERIEDrawBitmap(m_rect, 0.001f, m_tex, hudAlpha(Color::white));
 }
 
 ChangeLevelIconGui::ChangeLevelIconGui()
@@ -583,8 +588,8 @@ void ChangeLevelIconGui::draw() {
 	if(!isVisible())
 		return;
 	
-	EERIEDrawBitmap(m_rect, 0.0001f, m_tex, Color::gray(m_intensity));
-	
+	EERIEDrawBitmap(m_rect, 0.0001f, m_tex, hudAlpha(Color::gray(m_intensity)));
+
 	if(m_rect.contains(Vec2f(DANAEMouse))) {
 		cursorSetInteraction();
 		if(eeMouseUp1()) {
@@ -633,7 +638,7 @@ void QuickSaveIconGui::draw() {
 	arx_assert(tex);
 	
 	Vec2f size = Vec2f(tex->size());
-	EERIEDrawBitmap(Rectf(Vec2f(0, 0), size.x, size.y), 0.f, tex, Color::gray(alpha));
+	EERIEDrawBitmap(Rectf(Vec2f(0, 0), size.x, size.y), 0.f, tex, Color::gray(alpha * config.interface.hudOpacity));
 	
 }
 
@@ -691,11 +696,11 @@ void MemorizedRunesHud::draw() {
 				ARX_INTERFACE_HALO_Render(Color3f(0.2f, 0.4f, 0.8f), HALO_ACTIVE, tc->getHalo(), pos, Vec2f(m_scale));
 			}
 			
-			EERIEDrawBitmap(rect, 0, tc, Color::white);
-			
+			EERIEDrawBitmap(rect, 0, tc, hudAlpha(Color::white));
+
 			if(!player.hasRune(player.SpellToMemorize.iSpellSymbols[i])) {
 				UseRenderState state(render2D().blend(BlendInvDstColor, BlendOne).alphaCutout());
-				EERIEDrawBitmap(rect, 0, cursorMovable, Color::gray(0.8f));
+				EERIEDrawBitmap(rect, 0, cursorMovable, Color::gray(0.8f * config.interface.hudOpacity));
 			}
 			
 			pos.x += 32 * m_scale;
@@ -755,8 +760,8 @@ void HealthGauge::updateInput(const Vec2f & mousePos) {
 
 void HealthGauge::draw() {
 	
-	EERIEDrawBitmap2DecalY(m_rect, 0.f, m_filledTex, m_color, (1.f - m_amount));
-	EERIEDrawBitmap(m_rect, 0.001f, m_emptyTex, Color::white);
+	EERIEDrawBitmap2DecalY(m_rect, 0.f, m_filledTex, hudAlpha(m_color), (1.f - m_amount));
+	EERIEDrawBitmap(m_rect, 0.001f, m_emptyTex, hudAlpha(Color::white));
 }
 
 
@@ -795,8 +800,8 @@ void ManaGauge::updateInput(const Vec2f & mousePos) {
 
 void ManaGauge::draw() {
 	
-	EERIEDrawBitmap2DecalY(m_rect, 0.f, m_filledTex, Color::white, (1.f - m_amount));
-	EERIEDrawBitmap(m_rect, 0.001f, m_emptyTex, Color::white);
+	EERIEDrawBitmap2DecalY(m_rect, 0.f, m_filledTex, hudAlpha(Color::white), (1.f - m_amount));
+	EERIEDrawBitmap(m_rect, 0.001f, m_emptyTex, hudAlpha(Color::white));
 }
 
 
@@ -840,8 +845,8 @@ void MecanismIcon::draw() {
 	}
 	
 	UseRenderState state(render2D().blendAdditive());
-	
-	EERIEDrawBitmap(m_rect, 0.01f, m_tex, m_color);
+
+	EERIEDrawBitmap(m_rect, 0.01f, m_tex, hudAlpha(m_color));
 }
 
 
@@ -886,8 +891,8 @@ void ScreenArrows::draw() {
 	
 	UseRenderState state(render2D().blendAdditive());
 	
-	Color lcolor = Color::gray(0.5f);
-	
+	Color lcolor = hudAlpha(Color::gray(0.5f));
+
 	EERIEDrawBitmap(m_left, 0.01f, m_arrowLeftTex, lcolor);
 	EERIEDrawBitmapUVs(m_right,  .01f, m_arrowLeftTex, lcolor, Vec2f(1.f, 0.f), Vec2f(0.f, 0.f), Vec2f(1.f, 1.f), Vec2f(0.f, 1.f));
 	EERIEDrawBitmapUVs(m_top,    .01f, m_arrowLeftTex, lcolor, Vec2f(0.f, 1.f), Vec2f(0.f, 0.f), Vec2f(1.f, 1.f), Vec2f(1.f, 0.f));
@@ -919,7 +924,7 @@ void PrecastSpellsGui::PrecastSpellIconSlot::updateInput() {
 }
 
 void PrecastSpellsGui::PrecastSpellIconSlot::draw() const {
-	EERIEDrawBitmap(m_rect, 0.01f, m_tc, m_color);
+	EERIEDrawBitmap(m_rect, 0.01f, m_tc, hudAlpha(m_color));
 }
 
 PrecastSpellsGui::PrecastSpellsGui()
@@ -1023,8 +1028,8 @@ void ActiveSpellsGui::ActiveSpellIconSlot::draw() const {
 	if(!m_flicker)
 		return;
 
-	EERIEDrawBitmap(m_rect, 0.01f, m_tc, m_color);
-	
+	EERIEDrawBitmap(m_rect, 0.01f, m_tc, hudAlpha(m_color));
+
 }
 
 ActiveSpellsGui::ActiveSpellsGui()
@@ -1227,7 +1232,7 @@ void DamagedEquipmentGui::draw() {
 			continue;
 		}
 		
-		EERIEDrawBitmap(m_rect, 0.001f, iconequip[i], m_colors[i]);
+		EERIEDrawBitmap(m_rect, 0.001f, iconequip[i], hudAlpha(m_colors[i]));
 	}
 	
 }
@@ -1286,8 +1291,8 @@ void StealthGauge::draw() {
 	}
 	
 	UseRenderState state(render2D().blendAdditive());
-	
-	EERIEDrawBitmap(m_rect, 0.01f, m_texture, m_color);
+
+	EERIEDrawBitmap(m_rect, 0.01f, m_texture, hudAlpha(m_color));
 }
 
 bool PLAYER_INTERFACE_SHOW = true;
@@ -1442,7 +1447,8 @@ void HudRoot::draw() {
 	
 	UseRenderState state(render2D());
 	UseTextureState textureState(getInterfaceTextureFilter(), TextureStage::WrapClamp);
-	
+	GRenderer->GetTextureStage(0)->setAlphaOp(TextureStage::OpModulate);
+
 	if(player.Interface & INTER_COMBATMODE) {
 		hitStrengthGauge.draw();
 	}
@@ -1542,7 +1548,9 @@ void HudRoot::draw() {
 	activeSpellsGui.update(hudSlider);
 	activeSpellsGui.updateInput(mousePos);
 	activeSpellsGui.draw();
-	
+
+	GRenderer->GetTextureStage(0)->setAlphaOp(TextureStage::OpSelectArg1);
+
 }
 
 void HudRoot::recalcScale() {
