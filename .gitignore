@@ -1,7 +1,0 @@
-.*
-!.gitignore
-!.editorconfig
-!/.mailmap
-!/.travis.yml
-!/.github
-/build

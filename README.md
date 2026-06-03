@@ -1,5 +1,7 @@
 # Arx Libertatis — HUD Opacity Patch
 
+> ⚠️ **DISCLAIMER: This was made for personal use. Nothing here is guaranteed to work. Use at your own discretion. No support is provided. The compiled binary is built for one specific machine (CachyOS x86-64, Wayland) and will likely not run on yours without rebuilding from source.**
+
 > **This is a patched fork of [Arx Libertatis 1.2.1](https://github.com/arx/ArxLibertatis), the open-source engine reimplementation of Arx Fatalis.**
 > Upstream: **https://github.com/arx/ArxLibertatis**
 
