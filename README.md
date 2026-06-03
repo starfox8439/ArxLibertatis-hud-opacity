@@ -23,9 +23,11 @@ Two options. Both produce the same result.
 
 ### Option A — `patch` command
 
+The diff paths are relative to `src/` (e.g. `a/core/Config.h`), so apply from inside `src/`:
+
 ```bash
-cd ArxLibertatis-1.2.1
-patch -p1 < arx-hud-opacity.patch
+cd ArxLibertatis-1.2.1/src
+patch -p1 < /path/to/arx-hud-opacity.patch
 ```
 
 ### Option B — shell script (self-documenting, no patch binary needed)
@@ -42,7 +44,7 @@ The script prints exactly what it is doing at each step and exits non-zero on an
 
 Dependencies (Arch / CachyOS):
 ```bash
-sudo pacman -S cmake ninja boost glm glew epoxy libpng bzip2 zlib freetype2 openal sdl2
+sudo pacman -S --needed base-devel git cmake boost glm libepoxy glew freetype2 openal libpng bzip2 ninja
 ```
 
 Configure and build:
@@ -82,10 +84,10 @@ cd vcpkg
 
 On Windows, `patch.exe` is available via [Git for Windows](https://git-scm.com/download/win) (included in Git Bash) or via [MSYS2](https://www.msys2.org/). Alternatively, apply changes manually using `apply-hud-opacity.sh` under Git Bash, or apply the five edits described in `CHANGES.md` by hand in your editor.
 
-From Git Bash:
+From Git Bash (note: apply from inside `src/` — diff paths are relative to it):
 ```bash
-cd ArxLibertatis-1.2.1
-patch -p1 < arx-hud-opacity.patch
+cd ArxLibertatis-1.2.1/src
+patch -p1 < /path/to/arx-hud-opacity.patch
 ```
 
 ### Configure and build
