@@ -1,9 +1,19 @@
 # Arx Libertatis — HUD Opacity Patch
 
-> ⚠️ **DISCLAIMER: This was made for personal use. Nothing here is guaranteed to work. Use at your own discretion. No support is provided. The compiled binary is built for one specific machine (CachyOS x86-64, Wayland) and will likely not run on yours without rebuilding from source.**
+> Personal mod, single-machine build (CachyOS x86-64, Wayland). Compiled binary may not run on your system without rebuilding. Windows support is theoretical and untested. Use at your discretion.
 
-> **This is a patched fork of [Arx Libertatis 1.2.1](https://github.com/arx/ArxLibertatis), the open-source engine reimplementation of Arx Fatalis.**
+> **Fork of [Arx Libertatis 1.2.1](https://github.com/arx/ArxLibertatis)** — open-source reimplementation of Arx Fatalis.
 > Upstream: **https://github.com/arx/ArxLibertatis**
+
+---
+
+## Highlights
+
+- **New in-game slider** — Options → Interface → HUD Opacity, directly below HUD Scale
+- **Full HUD fade** — health/mana orbs, icons, stealth gauge, spell slots, screen arrows, all indicators
+- **Non-trivial render fix** — Arx's OpenGL texture stage defaults `GL_COMBINE_ALPHA` to `GL_REPLACE`, silently discarding vertex alpha. The patch switches to `GL_MODULATE` for the HUD draw block so opacity actually takes effect. See [GL_REPLACE trap](#the-gl_replace-trap-why-vertex-alpha-alone-isnt-enough)
+- **Zero-change default** — `hud_opacity = 1.0`, persisted to `cfg.ini`; vanilla behavior until you touch the slider
+- **Modder's guide included** — full walkthrough of the config/menu/render pattern for adding any future HUD setting
 
 ---
 
@@ -14,6 +24,22 @@ A **HUD opacity slider** in Options → Interface, directly beneath the existing
 Moving it fades the entire in-game HUD — health/mana orbs, side icons (backpack, book, torch, purse, steal, level-up, change-level), stealth gauge, damaged-equipment indicators, spell slots, screen-edge arrows, hit-strength gauge, memorized rune display, and gold number — from fully opaque (default) down to invisible. Menus, loading screens, cinematics, and the player book interior are unaffected.
 
 The setting persists to `cfg.ini` as `hud_opacity` in the `[interface]` section and defaults to `1.0` (identical to vanilla behavior until you move the slider).
+
+---
+
+## Screenshots
+
+<!-- Add screenshots here. Suggested shots:
+     1. Options → Interface page showing the "HUD Opacity" slider below "HUD Scale"
+     2. In-game HUD at 100% opacity (default)
+     3. In-game HUD at ~40% opacity showing the fade effect on orbs and icons
+     Drop image files into the repo and reference them as:
+     ![Slider in menu](screenshots/slider.png)
+     ![HUD at 100%](screenshots/hud-full.png)
+     ![HUD at 40%](screenshots/hud-faded.png)
+-->
+
+*Screenshots pending — see build/arx to run it yourself.*
 
 ---
 
@@ -42,7 +68,8 @@ The script prints exactly what it is doing at each step and exits non-zero on an
 
 ## Building
 
-Dependencies (Arch / CachyOS):
+### Linux (Arch / CachyOS)
+
 ```bash
 sudo pacman -S --needed base-devel git cmake boost glm libepoxy glew freetype2 openal libpng bzip2 ninja
 ```
@@ -59,20 +86,16 @@ Run (game data auto-discovered at `~/.local/share/arx/`):
 ./build/arx
 ```
 
----
+### Windows (theoretical)
 
-## Building on Windows (theoretical)
+> ⚠️ Not tested on Windows. Based on upstream build docs and standard CMake/MSVC practice.
 
-> ⚠️ This has not been tested on Windows. It is based on the upstream Arx Libertatis build documentation and general CMake/MSVC practice. It may require adjustments.
-
-### Prerequisites
-
+**Prerequisites:**
 - [Visual Studio 2019 or 2022](https://visualstudio.microsoft.com/) with the **Desktop development with C++** workload
 - [CMake 3.15+](https://cmake.org/download/)
-- [vcpkg](https://github.com/microsoft/vcpkg) for dependency management
+- [vcpkg](https://github.com/microsoft/vcpkg) for dependencies
 
-### Install dependencies via vcpkg
-
+**Install dependencies via vcpkg:**
 ```powershell
 git clone https://github.com/microsoft/vcpkg
 cd vcpkg
@@ -80,35 +103,20 @@ cd vcpkg
 .\vcpkg install boost glm sdl2 openal-soft freetype zlib libpng
 ```
 
-### Apply the patch
-
-On Windows, `patch.exe` is available via [Git for Windows](https://git-scm.com/download/win) (included in Git Bash) or via [MSYS2](https://www.msys2.org/). Alternatively, apply changes manually using `apply-hud-opacity.sh` under Git Bash, or apply the five edits described in `CHANGES.md` by hand in your editor.
-
-From Git Bash (note: apply from inside `src/` — diff paths are relative to it):
+**Apply the patch** (from Git Bash — note: apply from inside `src/`):
 ```bash
 cd ArxLibertatis-1.2.1/src
 patch -p1 < /path/to/arx-hud-opacity.patch
 ```
 
-### Configure and build
-
+**Configure and build:**
 ```powershell
-mkdir build
-cd build
+mkdir build && cd build
 cmake .. -DCMAKE_TOOLCHAIN_FILE=C:/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release
 cmake --build . --config Release --target arx
 ```
 
-Or open the generated `.sln` file in Visual Studio and build the `arx` target.
-
-### Game data
-
-Place the Arx Fatalis `.pak` files (`data.pak`, `data2.pak`, `loc.pak`, `sfx.pak`, `speech.pak`) in one of:
-- `%USERPROFILE%\AppData\Local\ArxLibertatis\` (preferred user location)
-- The same directory as `arx.exe`
-- `C:\Program Files (x86)\Arx Fatalis\` (if installed via GOG or Steam)
-
-Run `arx.exe --list-dirs` to see the full list of paths it searches.
+**Game data:** place `.pak` files in `%USERPROFILE%\AppData\Local\ArxLibertatis\` or alongside `arx.exe`. Run `arx.exe --list-dirs` to see all searched paths.
 
 ---
 
@@ -247,8 +255,8 @@ This same fix applies to **any future HUD alpha effect**. You do not need to tou
 | Main menus | ❌ | separate render path |
 | Loading screens | ❌ | separate render path |
 | Cinematics | ❌ | separate render path |
-| Player book interior | ❌ | `g_playerBook.manage()` is inside the HUD draw block but uses its own render state and does not call `EERIEDrawBitmap` through the HUD helpers |
-| Inventory grids | ❌ | drawn by inventory HUD sub-objects; their internal draw calls do not use `hudAlpha()` |
+| Player book interior | ❌ | `g_playerBook.manage()` uses its own render state stack |
+| Inventory grids | ❌ | internal draw calls do not go through `hudAlpha()` |
 
 ---
 
@@ -262,19 +270,22 @@ See [`CHANGES.md`](CHANGES.md) for a line-by-line walkthrough of every modificat
 
 | File | Purpose |
 |---|---|
-| `arx-hud-opacity.patch` | Clean unified diff — apply with `patch -p1` |
+| `arx-hud-opacity.patch` | Annotated unified diff — apply with `patch -p1` from inside `src/` |
 | `apply-hud-opacity.sh` | Self-documenting shell script that applies the same changes |
 | `CHANGES.md` | Line-by-line explanation of every modification |
-| `src/` | Full patched source tree |
+| `build/arx` | Compiled binary (CachyOS x86-64, Wayland) |
+| `src/` | The five modified source files |
 
 ---
 
-## Generated by Claude
+## Authorship
 
-This entire patch — reading the codebase, tracing the HUD scale template end-to-end, discovering and fixing the `GL_REPLACE` alpha trap, writing all C++, building, iterating, debugging, and committing — was produced in a single session by **[Claude Sonnet 4.6](https://www.anthropic.com/claude)** (Anthropic) running as [Claude Code](https://claude.ai/code).
+**Author / maintainer: Dantalian** — specification, code review, validation against engine internals, and correction of issues found in review.
+
+**Implementation:** generated by [Claude Sonnet 4.6](https://www.anthropic.com/claude) via [Claude Code](https://claude.ai/code) under direction, then reviewed and corrected before release. Review caught and fixed a texture-stage alpha bug (`GL_REPLACE` discarding vertex alpha), a broken patch-apply path, and incorrect build dependencies; additive-blend fade behavior was verified against the upstream `blendAdditive()` definition.
 
 ---
 
 ## License
 
-The patch follows the same license as Arx Libertatis: **GPLv3+**. See `COPYING` and `LICENSE`.
+The patch follows the same license as Arx Libertatis: **GPLv3+**. See `COPYING` and `LICENSE` in the upstream repo.
