@@ -29,17 +29,13 @@ The setting persists to `cfg.ini` as `hud_opacity` in the `[interface]` section 
 
 ## Screenshots
 
-<!-- Add screenshots here. Suggested shots:
-     1. Options → Interface page showing the "HUD Opacity" slider below "HUD Scale"
-     2. In-game HUD at 100% opacity (default)
-     3. In-game HUD at ~40% opacity showing the fade effect on orbs and icons
-     Drop image files into the repo and reference them as:
-     ![Slider in menu](screenshots/slider.png)
-     ![HUD at 100%](screenshots/hud-full.png)
-     ![HUD at 40%](screenshots/hud-faded.png)
--->
+**Options → Interface — HUD Opacity slider visible below HUD Size:**
 
-*Screenshots pending — see build/arx to run it yourself.*
+![Settings menu showing HUD Opacity slider](screenshots/settings-menu.png)
+
+**In-game with HUD opacity reduced — indicators faded:**
+
+![In-game HUD at reduced opacity](screenshots/hud-faded.png)
 
 ---
 
