@@ -1,6 +1,6 @@
 # Arx Libertatis — HUD Opacity Patch
 
-> Personal mod, single-machine build (CachyOS x86-64, Wayland). Compiled binary may not run on your system without rebuilding. Windows support is theoretical and untested. Use at your discretion.
+> Personal mod. Pre-built binary (CachyOS x86-64, Wayland) available in [Releases](https://github.com/starfox8439/ArxLibertatis-hud-opacity/releases) — likely won't run on other systems without rebuilding. Windows support is theoretical and untested. Use at your discretion.
 
 > **Fork of [Arx Libertatis 1.2.1](https://github.com/arx/ArxLibertatis)** — open-source reimplementation of Arx Fatalis.
 > Upstream: **https://github.com/arx/ArxLibertatis**
@@ -269,7 +269,6 @@ See [`CHANGES.md`](CHANGES.md) for a line-by-line walkthrough of every modificat
 | `arx-hud-opacity.patch` | Annotated unified diff — apply with `patch -p1` from inside `src/` |
 | `apply-hud-opacity.sh` | Self-documenting shell script that applies the same changes |
 | `CHANGES.md` | Line-by-line explanation of every modification |
-| `build/arx` | Compiled binary (CachyOS x86-64, Wayland) |
 | `src/` | The five modified source files |
 
 ---
