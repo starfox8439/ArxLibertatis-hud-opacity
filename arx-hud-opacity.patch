@@ -1,0 +1,363 @@
+# =============================================================================
+# FILE 1: src/core/Config.h
+#
+# Adds `float hudOpacity` to Config::interface, alongside hudScale.
+# This is the in-memory storage for the setting. The field must live here
+# for Config::save() and Config::init() to read/write it.
+# =============================================================================
+--- a/core/Config.h
++++ b/core/Config.h
+@@ -165,6 +165,7 @@
+ 		
+ 		float hudScale;
+ 		bool hudScaleInteger;
++		float hudOpacity;
+ 		float bookScale;
+ 		bool bookScaleInteger;
+ 		float cursorScale;
+# =============================================================================
+# FILE 2: src/core/Config.cpp  (4 hunks)
+#
+# Four locations in this one file:
+#   Hunk 1 — Default::hudOpacity = 1.0f  (used when key absent from cfg.ini;
+#             MUST be 1.0 so existing installs see no change on first run)
+#   Hunk 2 — Key::hudOpacity = "hud_opacity"  (the cfg.ini key string)
+#   Hunk 3 — Config::save() writeKey  (persists value to cfg.ini)
+#   Hunk 4 — Config::init() getKey + clamp  (reads and validates on load)
+# =============================================================================
+--- a/core/Config.cpp
++++ b/core/Config.cpp
+@@ -116,6 +116,7 @@
+ 	gamma = 5.f,
+ 	fov = 75.f,
+ 	hudScale = 0.5f,
++	hudOpacity = 1.f,
+ 	bookScale = 1.f,
+ 	cursorScale = 0.5f,
+ 	fontSize = 1.f,
+@@ -223,6 +224,7 @@
+ 	cinematicWidescreenMode = "cinematic_widescreen_mode",
+ 	hudScale = "hud_scale",
+ 	hudScaleInteger = "hud_scale_integer",
++	hudOpacity = "hud_opacity",
+ 	bookScale = "book_scale",
+ 	bookScaleInteger = "book_scale_integer",
+ 	cursorScale = "cursor_scale",
+@@ -481,6 +483,7 @@
+ 	writer.writeKey(Key::cinematicWidescreenMode, int(interface.cinematicWidescreenMode));
+ 	writer.writeKey(Key::hudScale, interface.hudScale);
+ 	writer.writeKey(Key::hudScaleInteger, interface.hudScaleInteger);
++	writer.writeKey(Key::hudOpacity, interface.hudOpacity);
+ 	writer.writeKey(Key::bookScale, interface.bookScale);
+ 	writer.writeKey(Key::bookScaleInteger, interface.bookScaleInteger);
+ 	writer.writeKey(Key::cursorScale, interface.cursorScale);
+@@ -637,6 +640,8 @@
+ 	float hudScale = reader.getKey(Section::Interface, Key::hudScale, Default::hudScale);
+ 	interface.hudScale = glm::clamp(hudScale, 0.f, 1.f);
+ 	interface.hudScaleInteger = reader.getKey(Section::Interface, Key::hudScaleInteger, Default::hudScaleInteger);
++	float hudOpacity = reader.getKey(Section::Interface, Key::hudOpacity, Default::hudOpacity);
++	interface.hudOpacity = glm::clamp(hudOpacity, 0.f, 1.f);
+ 	float bookScale = reader.getKey(Section::Interface, Key::bookScale, Default::bookScale);
+ 	interface.bookScale = glm::clamp(bookScale, 0.f, 1.f);
+ 	interface.bookScaleInteger = reader.getKey(Section::Interface, Key::bookScaleInteger, Default::bookScaleInteger);
+# =============================================================================
+# FILE 3: src/gui/MainMenu.cpp  (2 hunks)
+#
+# Hunk 1 — SliderWidget block inserted after the hudScale slider in
+#           InterfaceOptionsMenuPage constructor. The getLocalised() two-arg
+#           form falls back to "HUD Opacity" since we don't modify .pak files.
+#           setValue(hudOpacity * 10) maps the 0-1 float to the 0-10 int range.
+# Hunk 2 — onChangedHudOpacity() callback (state * 0.1 converts back to float).
+#           No recalcScale() needed — render path reads config live each frame.
+# =============================================================================
+--- a/gui/MainMenu.cpp
++++ b/gui/MainMenu.cpp
+@@ -1258,7 +1258,15 @@
+ 			sld->setValue(int(config.interface.hudScale * 10.f));
+ 			addCenter(sld);
+ 		}
+-		
++
++		{
++			std::string label = getLocalised("system_menus_options_interface_hud_opacity", "HUD Opacity");
++			SliderWidget * sld = new SliderWidget(sliderSize(), hFontMenu, label);
++			sld->valueChanged = boost::bind(&InterfaceOptionsMenuPage::onChangedHudOpacity, this, arg::_1);
++			sld->setValue(int(config.interface.hudOpacity * 10.f));
++			addCenter(sld);
++		}
++
+ 		{
+ 			std::string label = getLocalised("system_menus_options_interface_hud_scale_integer");
+ 			CheckboxWidget * cb = new CheckboxWidget(checkboxSize(), hFontMenu, label);
+@@ -1355,7 +1363,11 @@
+ 		config.interface.hudScale = float(state) * 0.1f;
+ 		g_hudRoot.recalcScale();
+ 	}
+-	
++
++	void onChangedHudOpacity(int state) {
++		config.interface.hudOpacity = float(state) * 0.1f;
++	}
++
+ 	void onChangedHudScaleInteger(bool checked) {
+ 		config.interface.hudScaleInteger = checked;
+ 		g_hudRoot.recalcScale();
+# =============================================================================
+# FILE 4: src/gui/Hud.cpp  (17 hunks)
+#
+# Hunk 1  — hudAlpha() file-local helper: scales vertex alpha by hud_opacity.
+#
+# ** THE CRITICAL FIX — WHY VERTEX ALPHA ALONE DOES NOTHING **
+# Arx's GL texture stage defaults to GL_COMBINE_ALPHA = GL_REPLACE, meaning
+# fragment_alpha = texture_alpha, ignoring vertex alpha entirely (there is a
+# TODO comment about this in GLTextureStage.cpp). Without the OpModulate
+# bracket below, hudAlpha() would have zero visual effect.
+#
+# Hunk 16 — setAlphaOp(OpModulate) at the start of HudRoot::draw() draw block.
+#            Switches formula to: fragment_alpha = texture_alpha * vertex_alpha.
+#            With vertex_alpha = hud_opacity * 255, result = texture_alpha * hud_opacity.
+# Hunk 17 — setAlphaOp(OpSelectArg1) at the very end of HudRoot::draw().
+#            Restores the default so nothing outside the HUD is affected.
+#
+# Hunks 2-15 — hudAlpha() applied to every EERIEDrawBitmap color argument in
+#              each HUD element's draw function. Works for both standard-blend
+#              and additive-blend elements once OpModulate is active.
+#              Exception: QuickSaveIconGui uses BlendSrcColor (screen blend),
+#              where RGB is the blend factor — opacity applied to gray value directly.
+# =============================================================================
+--- a/gui/Hud.cpp
++++ b/gui/Hud.cpp
+@@ -68,6 +68,11 @@
+ static const int indicatorVertSpacing = 30;
+ static const int indicatorHorizSpacing = 20;
+ 
++// Scale vertex alpha by HUD opacity. Works for all blend modes once OpModulate is active.
++static Color hudAlpha(Color c) {
++	return Color(c.r, c.g, c.b, u8(float(c.a) * config.interface.hudOpacity));
++}
++
+ HitStrengthGauge::HitStrengthGauge()
+ 	: m_emptyTex(NULL)
+ 	, m_fullTex(NULL)
+@@ -130,19 +135,19 @@
+ 	
+ 	{
+ 		UseRenderState state(render2D().blendAdditive());
+-		EERIEDrawBitmap(m_rect, 0.0001f, m_fullTex, Color::gray(m_intensity));
++		EERIEDrawBitmap(m_rect, 0.0001f, m_fullTex, hudAlpha(Color::gray(m_intensity)));
+ 	}
+-	
+-	EERIEDrawBitmap(m_rect, 0.0001f, m_emptyTex, Color::white);
+-	
++
++	EERIEDrawBitmap(m_rect, 0.0001f, m_emptyTex, hudAlpha(Color::white));
++
+ 	if(m_flashActive && player.m_skillFull.etheralLink >= 40) {
+-		
++
+ 		float j = 1.0f - m_flashIntensity;
+ 		Color col = (j < 0.5f) ? Color::rgb(j * 2.f, 1.f, 0.f) : Color::rgb(1.f, m_flashIntensity, 0.f);
+-		
++
+ 		UseRenderState state(render2D().blendAdditive());
+-		EERIEDrawBitmap(m_hitRect, 0.0001f, m_hitTex, col);
+-		
++		EERIEDrawBitmap(m_hitRect, 0.0001f, m_hitTex, hudAlpha(col));
++
+ 	}
+ }
+ 
+@@ -460,7 +465,7 @@
+ 	
+ 	if(m_isSelected) {
+ 		Vec2f numberPos = m_rect.topRight() + Vec2f(0.f, -15 * m_scale);
+-		ARX_INTERFACE_DrawNumber(numberPos, player.gold, Color::white, m_scale);
++		ARX_INTERFACE_DrawNumber(numberPos, player.gold, hudAlpha(Color::white), m_scale);
+ 	}
+ 	
+ }
+@@ -552,7 +557,7 @@
+ 	if(!isVisible())
+ 		return;
+ 	
+-	EERIEDrawBitmap(m_rect, 0.001f, m_tex, Color::white);
++	EERIEDrawBitmap(m_rect, 0.001f, m_tex, hudAlpha(Color::white));
+ }
+ 
+ ChangeLevelIconGui::ChangeLevelIconGui()
+@@ -583,8 +588,8 @@
+ 	if(!isVisible())
+ 		return;
+ 	
+-	EERIEDrawBitmap(m_rect, 0.0001f, m_tex, Color::gray(m_intensity));
+-	
++	EERIEDrawBitmap(m_rect, 0.0001f, m_tex, hudAlpha(Color::gray(m_intensity)));
++
+ 	if(m_rect.contains(Vec2f(DANAEMouse))) {
+ 		cursorSetInteraction();
+ 		if(eeMouseUp1()) {
+@@ -633,7 +638,7 @@
+ 	arx_assert(tex);
+ 	
+ 	Vec2f size = Vec2f(tex->size());
+-	EERIEDrawBitmap(Rectf(Vec2f(0, 0), size.x, size.y), 0.f, tex, Color::gray(alpha));
++	EERIEDrawBitmap(Rectf(Vec2f(0, 0), size.x, size.y), 0.f, tex, Color::gray(alpha * config.interface.hudOpacity));
+ 	
+ }
+ 
+@@ -691,11 +696,11 @@
+ 				ARX_INTERFACE_HALO_Render(Color3f(0.2f, 0.4f, 0.8f), HALO_ACTIVE, tc->getHalo(), pos, Vec2f(m_scale));
+ 			}
+ 			
+-			EERIEDrawBitmap(rect, 0, tc, Color::white);
+-			
++			EERIEDrawBitmap(rect, 0, tc, hudAlpha(Color::white));
++
+ 			if(!player.hasRune(player.SpellToMemorize.iSpellSymbols[i])) {
+ 				UseRenderState state(render2D().blend(BlendInvDstColor, BlendOne).alphaCutout());
+-				EERIEDrawBitmap(rect, 0, cursorMovable, Color::gray(0.8f));
++				EERIEDrawBitmap(rect, 0, cursorMovable, Color::gray(0.8f * config.interface.hudOpacity));
+ 			}
+ 			
+ 			pos.x += 32 * m_scale;
+@@ -755,8 +760,8 @@
+ 
+ void HealthGauge::draw() {
+ 	
+-	EERIEDrawBitmap2DecalY(m_rect, 0.f, m_filledTex, m_color, (1.f - m_amount));
+-	EERIEDrawBitmap(m_rect, 0.001f, m_emptyTex, Color::white);
++	EERIEDrawBitmap2DecalY(m_rect, 0.f, m_filledTex, hudAlpha(m_color), (1.f - m_amount));
++	EERIEDrawBitmap(m_rect, 0.001f, m_emptyTex, hudAlpha(Color::white));
+ }
+ 
+ 
+@@ -795,8 +800,8 @@
+ 
+ void ManaGauge::draw() {
+ 	
+-	EERIEDrawBitmap2DecalY(m_rect, 0.f, m_filledTex, Color::white, (1.f - m_amount));
+-	EERIEDrawBitmap(m_rect, 0.001f, m_emptyTex, Color::white);
++	EERIEDrawBitmap2DecalY(m_rect, 0.f, m_filledTex, hudAlpha(Color::white), (1.f - m_amount));
++	EERIEDrawBitmap(m_rect, 0.001f, m_emptyTex, hudAlpha(Color::white));
+ }
+ 
+ 
+@@ -840,8 +845,8 @@
+ 	}
+ 	
+ 	UseRenderState state(render2D().blendAdditive());
+-	
+-	EERIEDrawBitmap(m_rect, 0.01f, m_tex, m_color);
++
++	EERIEDrawBitmap(m_rect, 0.01f, m_tex, hudAlpha(m_color));
+ }
+ 
+ 
+@@ -886,8 +891,8 @@
+ 	
+ 	UseRenderState state(render2D().blendAdditive());
+ 	
+-	Color lcolor = Color::gray(0.5f);
+-	
++	Color lcolor = hudAlpha(Color::gray(0.5f));
++
+ 	EERIEDrawBitmap(m_left, 0.01f, m_arrowLeftTex, lcolor);
+ 	EERIEDrawBitmapUVs(m_right,  .01f, m_arrowLeftTex, lcolor, Vec2f(1.f, 0.f), Vec2f(0.f, 0.f), Vec2f(1.f, 1.f), Vec2f(0.f, 1.f));
+ 	EERIEDrawBitmapUVs(m_top,    .01f, m_arrowLeftTex, lcolor, Vec2f(0.f, 1.f), Vec2f(0.f, 0.f), Vec2f(1.f, 1.f), Vec2f(1.f, 0.f));
+@@ -919,7 +924,7 @@
+ }
+ 
+ void PrecastSpellsGui::PrecastSpellIconSlot::draw() const {
+-	EERIEDrawBitmap(m_rect, 0.01f, m_tc, m_color);
++	EERIEDrawBitmap(m_rect, 0.01f, m_tc, hudAlpha(m_color));
+ }
+ 
+ PrecastSpellsGui::PrecastSpellsGui()
+@@ -1023,8 +1028,8 @@
+ 	if(!m_flicker)
+ 		return;
+ 
+-	EERIEDrawBitmap(m_rect, 0.01f, m_tc, m_color);
+-	
++	EERIEDrawBitmap(m_rect, 0.01f, m_tc, hudAlpha(m_color));
++
+ }
+ 
+ ActiveSpellsGui::ActiveSpellsGui()
+@@ -1227,7 +1232,7 @@
+ 			continue;
+ 		}
+ 		
+-		EERIEDrawBitmap(m_rect, 0.001f, iconequip[i], m_colors[i]);
++		EERIEDrawBitmap(m_rect, 0.001f, iconequip[i], hudAlpha(m_colors[i]));
+ 	}
+ 	
+ }
+@@ -1286,8 +1291,8 @@
+ 	}
+ 	
+ 	UseRenderState state(render2D().blendAdditive());
+-	
+-	EERIEDrawBitmap(m_rect, 0.01f, m_texture, m_color);
++
++	EERIEDrawBitmap(m_rect, 0.01f, m_texture, hudAlpha(m_color));
+ }
+ 
+ bool PLAYER_INTERFACE_SHOW = true;
+@@ -1442,7 +1447,8 @@
+ 	
+ 	UseRenderState state(render2D());
+ 	UseTextureState textureState(getInterfaceTextureFilter(), TextureStage::WrapClamp);
+-	
++	GRenderer->GetTextureStage(0)->setAlphaOp(TextureStage::OpModulate);
++
+ 	if(player.Interface & INTER_COMBATMODE) {
+ 		hitStrengthGauge.draw();
+ 	}
+@@ -1542,7 +1548,9 @@
+ 	activeSpellsGui.update(hudSlider);
+ 	activeSpellsGui.updateInput(mousePos);
+ 	activeSpellsGui.draw();
+-	
++
++	GRenderer->GetTextureStage(0)->setAlphaOp(TextureStage::OpSelectArg1);
++
+ }
+ 
+ void HudRoot::recalcScale() {
+# =============================================================================
+# FILE 5: src/gui/hud/HudCommon.cpp  (2 hunks)
+#
+# HudIconBase::draw() is the shared base for all six side icons.
+# hudAlpha() from Hud.cpp is static/file-local, so the expression is inlined.
+# The OpModulate texture stage is already active when this is called
+# (HudIconBase::draw is always called from within HudRoot::draw()).
+#
+# Hunk 1 — adds #include "core/Config.h" for config.interface.hudOpacity access.
+# Hunk 2 — applies opacity to the icon draw and the hover-highlight additive draw.
+# =============================================================================
+--- a/gui/hud/HudCommon.cpp
++++ b/gui/hud/HudCommon.cpp
+@@ -20,6 +20,7 @@
+ #include "gui/hud/HudCommon.h"
+ 
+ #include "game/Entity.h"
++#include "core/Config.h"
+ #include "graphics/Draw.h"
+ #include "graphics/Renderer.h"
+ #include "gui/Interface.h"
+@@ -39,11 +40,11 @@
+ 		ARX_INTERFACE_HALO_Render(m_haloColor, HALO_ACTIVE, m_tex->getHalo(), m_rect.topLeft(), Vec2f(m_scale));
+ 	}
+ 	
+-	EERIEDrawBitmap(m_rect, 0.001f, m_tex, Color::white);
+-	
++	EERIEDrawBitmap(m_rect, 0.001f, m_tex, Color(255, 255, 255, u8(255.f * config.interface.hudOpacity)));
++
+ 	if(m_isSelected) {
+ 		UseRenderState state(render2D().blendAdditive());
+-		EERIEDrawBitmap(m_rect, 0.001f, m_tex, Color::white);
++		EERIEDrawBitmap(m_rect, 0.001f, m_tex, Color(255, 255, 255, u8(255.f * config.interface.hudOpacity)));
+ 	}
+ 	
+ }
